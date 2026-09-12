@@ -1,0 +1,847 @@
+<title>House Ledger</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --paper: #f1efe6;
+    --paper-raised: #ffffff;
+    --ink: #23262f;
+    --ink-soft: #5b5f6b;
+    --ink-faint: #8b8f9a;
+    --line: #ddd8cc;
+    --line-soft: #e8e4d9;
+    --accent: #a6742c;
+    --accent-ink: #6f4d1c;
+    --accent-soft: #f0e3c8;
+    --navy: #1f3350;
+    --navy-soft: #e4eaf1;
+    --good: #3f7d5c;
+    --good-soft: #e2efe7;
+    --warning: #bf7a28;
+    --warning-soft: #f5e7d2;
+    --critical: #b0483f;
+    --critical-soft: #f5e0dd;
+    --shadow: 0 1px 2px rgba(35,38,47,0.06), 0 6px 20px -8px rgba(35,38,47,0.18);
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16181e;
+      --paper-raised: #1f232b;
+      --ink: #eceae3;
+      --ink-soft: #a6abb8;
+      --ink-faint: #767c89;
+      --line: #333846;
+      --line-soft: #262b36;
+      --accent: #d3a75c;
+      --accent-ink: #f0d9a8;
+      --accent-soft: #3a301c;
+      --navy: #7fa0c9;
+      --navy-soft: #202b3d;
+      --good: #6cbb92;
+      --good-soft: #1c2f26;
+      --warning: #dc9c50;
+      --warning-soft: #382c19;
+      --critical: #e0837a;
+      --critical-soft: #3a2320;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16181e;
+    --paper-raised: #1f232b;
+    --ink: #eceae3;
+    --ink-soft: #a6abb8;
+    --ink-faint: #767c89;
+    --line: #333846;
+    --line-soft: #262b36;
+    --accent: #d3a75c;
+    --accent-ink: #f0d9a8;
+    --accent-soft: #3a301c;
+    --navy: #7fa0c9;
+    --navy-soft: #202b3d;
+    --good: #6cbb92;
+    --good-soft: #1c2f26;
+    --warning: #dc9c50;
+    --warning-soft: #382c19;
+    --critical: #e0837a;
+    --critical-soft: #3a2320;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    padding: 0 20px 64px;
+  }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; text-wrap: balance; margin: 0; }
+  a { color: var(--accent-ink); }
+  button { font-family: inherit; cursor: pointer; }
+  input, textarea, select { font-family: inherit; }
+
+  /* ---- shell ---- */
+  .topbar {
+    max-width: 1180px; margin: 0 auto;
+    display: flex; align-items: center; gap: 20px;
+    padding-block: 22px 14px;
+    flex-wrap: wrap;
+  }
+  .wordmark { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+  .wordmark h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .wordmark .tag { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+  .tabs { display: flex; gap: 4px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 999px; padding: 3px; box-shadow: var(--shadow); }
+  .tabs button {
+    border: none; background: transparent; color: var(--ink-soft);
+    padding: 7px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 500;
+  }
+  .tabs button.active { background: var(--ink); color: var(--paper-raised); }
+  .identity { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
+  .identity .chip { font-weight: 600; color: var(--ink); }
+  .identity button { border: none; background: none; color: var(--accent-ink); font-size: 12.5px; text-decoration: underline; padding: 0; }
+
+  main { max-width: 1180px; margin: 0 auto; }
+
+  /* ---- identity gate ---- */
+  .gate {
+    max-width: 420px; margin: 12vh auto; background: var(--paper-raised);
+    border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 32px; text-align: center;
+  }
+  .gate h2 { font-size: 24px; margin-bottom: 8px; }
+  .gate p { color: var(--ink-soft); font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+  .gate input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 14px; margin-bottom: 12px; }
+  .gate button.primary { width: 100%; }
+
+  button.primary {
+    background: var(--ink); color: var(--paper-raised); border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 13.5px; font-weight: 600;
+  }
+  button.ghost {
+    background: transparent; border: 1px solid var(--line); color: var(--ink);
+    border-radius: 8px; padding: 9px 16px; font-size: 13.5px; font-weight: 500;
+  }
+  button.ghost:hover { border-color: var(--ink-faint); }
+  button.icon-btn { background: none; border: none; color: var(--ink-faint); font-size: 15px; padding: 4px; line-height: 1; }
+  button.icon-btn:hover { color: var(--ink); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ---- toolbar row ---- */
+  .toolbar { display: flex; align-items: center; gap: 12px; margin: 10px 0 20px; flex-wrap: wrap; }
+  .toolbar .count { font-size: 13px; color: var(--ink-faint); margin-right: auto; }
+  .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-pill {
+    border: 1px solid var(--line); background: var(--paper-raised); color: var(--ink-soft);
+    border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 500;
+  }
+  .filter-pill.active { background: var(--navy-soft); border-color: var(--navy); color: var(--navy); }
+
+  /* ---- house grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    position: relative; cursor: pointer; transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .card-check { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+  .card-addr { font-size: 16.5px; font-weight: 600; line-height: 1.25; flex: 1; }
+  .status-pill { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .status-interested { background: var(--navy-soft); color: var(--navy); }
+  .status-touring { background: var(--accent-soft); color: var(--accent-ink); }
+  .status-offer { background: var(--warning-soft); color: var(--warning); }
+  .status-passed { background: var(--critical-soft); color: var(--critical); }
+  .stat-row { display: flex; gap: 14px; font-size: 13px; color: var(--ink-soft); flex-wrap: wrap; }
+  .stat-row .num { color: var(--ink); font-weight: 500; }
+  .stat-row .price { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .links-row { display: flex; gap: 10px; font-size: 12px; }
+  .links-row a { text-decoration: none; }
+  .links-row a:hover { text-decoration: underline; }
+  .ratings-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+  .rating-chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600;
+    background: var(--line-soft); color: var(--ink-soft); border-radius: 999px; padding: 3px 9px 3px 6px;
+  }
+  .rating-chip .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .rating-chip .val { color: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
+  .empty-state h3 { color: var(--ink-soft); font-size: 19px; margin-bottom: 6px; }
+
+  /* ---- floating compare bar ---- */
+  .compare-bar {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper-raised); border-radius: 999px;
+    padding: 10px 10px 10px 20px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 10px 30px -6px rgba(0,0,0,0.4); z-index: 40; font-size: 13.5px;
+  }
+  .compare-bar button.primary { background: var(--accent); color: #241a08; padding: 8px 16px; }
+
+  /* ---- drawer (add / detail) ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(20,20,24,0.4); z-index: 50; }
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: min(560px, 100vw);
+    background: var(--paper); border-left: 1px solid var(--line); z-index: 51;
+    overflow-y: auto; box-shadow: -12px 0 40px -12px rgba(0,0,0,0.3);
+  }
+  .drawer-head {
+    position: sticky; top: 0; background: var(--paper); border-bottom: 1px solid var(--line);
+    padding: 18px 22px; display: flex; align-items: center; gap: 12px; z-index: 2;
+  }
+  .drawer-head h2 { font-size: 19px; flex: 1; }
+  .drawer-body { padding: 20px 22px 40px; display: flex; flex-direction: column; gap: 22px; }
+
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+  .field input, .field select, .field textarea {
+    border: 1px solid var(--line); background: var(--paper-raised); color: var(--ink);
+    border-radius: 7px; padding: 8px 10px; font-size: 13.5px; width: 100%;
+  }
+  .field textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  section.block { border-top: 1px solid var(--line-soft); padding-top: 18px; }
+  section.block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); margin-bottom: 12px; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; }
+
+  .eval-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 480px) { .eval-columns, .field-grid { grid-template-columns: 1fr; } }
+  .eval-card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .eval-card.mine { border-color: var(--accent); }
+  .eval-card .who { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+  .eval-card .who .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .rating-scale { display: flex; align-items: center; gap: 10px; }
+  .rating-scale input[type=range] { flex: 1; accent-color: var(--accent); }
+  .rating-scale .rval { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 15px; min-width: 28px; text-align: right; }
+  .pn-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pn-cols label { font-size: 10.5px; }
+  .pn-cols textarea { min-height: 70px; font-size: 12.5px; }
+  .pn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+  .pn-list li { padding-left: 14px; position: relative; }
+  .pn-list.pos li::before { content: "+"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+  .pn-list.neg li::before { content: "\2212"; position: absolute; left: 0; color: var(--critical); font-weight: 700; }
+  .empty-eval { color: var(--ink-faint); font-size: 12.5px; text-align: center; padding: 18px 0; }
+
+  .row-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ---- compare view ---- */
+  .compare-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-raised); box-shadow: var(--shadow); }
+  table.compare { border-collapse: collapse; width: 100%; min-width: 560px; }
+  table.compare th, table.compare td { padding: 11px 16px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; font-size: 13.5px; }
+  table.compare th.rowlabel, table.compare td.rowlabel { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; white-space: nowrap; background: var(--paper); position: sticky; left: 0; }
+  table.compare thead th { background: var(--paper); border-bottom: 1px solid var(--line); }
+  table.compare .col-addr { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 600; }
+  table.compare td.best { background: var(--good-soft); font-weight: 600; color: var(--good); }
+  table.compare .rm-col { background: none; border: none; color: var(--ink-faint); font-size: 13px; }
+
+  /* ---- ranked view ---- */
+  .rank-list { display: flex; flex-direction: column; gap: 10px; }
+  .rank-row { display: flex; align-items: center; gap: 16px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .rank-num { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--accent); width: 34px; text-align: center; flex-shrink: 0; }
+  .rank-main { flex: 1; min-width: 0; }
+  .rank-addr { font-weight: 600; font-size: 15px; }
+  .rank-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .rank-score { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; text-align: right; }
+  .rank-score .lbl { display: block; font-size: 9.5px; text-transform: uppercase; color: var(--ink-faint); font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; letter-spacing: 0.05em; }
+  .rank-move { display: flex; flex-direction: column; }
+
+  .sort-toggle { display: flex; gap: 6px; }
+</style>
+
+<div id="app"></div>
+
+<script>
+(function () {
+  const PALETTE = ['#a6742c', '#1f3350', '#3f7d5c', '#b0483f', '#5b5f6b', '#7a5ca6'];
+  const STATUS_LABEL = { interested: 'Interested', touring: 'Touring', offer: 'Offer Made', passed: 'Passed' };
+
+  function slug(s) {
+    return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'anon';
+  }
+  function colorFor(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return PALETTE[h % PALETTE.length];
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fmtMoney(n) {
+    if (n == null || n === '') return '—';
+    const num = Number(n);
+    if (Number.isNaN(num)) return esc(n);
+    return '$' + Math.round(num).toLocaleString('en-US');
+  }
+  function fmtNum(n, suffix) {
+    if (n == null || n === '') return '—';
+    const num = Number(n);
+    if (Number.isNaN(num)) return esc(n);
+    return num.toLocaleString('en-US') + (suffix || '');
+  }
+  function linesToArray(text) {
+    return (text || '').split('\n').map(s => s.trim()).filter(Boolean);
+  }
+
+  // ---------------- state ----------------
+  let db = null;
+  let identity = localStorage.getItem('hh_name') || '';
+  let tab = 'houses';
+  let statusFilter = 'all';
+  let houses = new Map();      // id -> data
+  let evaluations = new Map(); // houseId -> Map(personSlug -> data)
+  let evalUnsubs = new Map();  // houseId -> unsub fn
+  let selected = new Set();    // house ids selected for compare
+  let compareIds = [];         // ids actively shown in compare tab
+  let rankMode = 'score';      // 'score' | 'manual'
+  let openDrawer = null;       // null | {type:'add'} | {type:'detail', id}
+  let ready = false;
+
+  const app = document.getElementById('app');
+
+  function render() {
+    if (!identity) { renderGate(); return; }
+    let html = renderTopbar();
+    html += '<main>';
+    if (!ready) {
+      html += '<div class="empty-state">Loading your ledger…</div>';
+    } else if (tab === 'houses') {
+      html += renderHouses();
+    } else if (tab === 'compare') {
+      html += renderCompare();
+    } else if (tab === 'ranked') {
+      html += renderRanked();
+    }
+    html += '</main>';
+    if (tab === 'houses' && selected.size >= 2) html += renderCompareBar();
+    app.innerHTML = html;
+    bindGlobal();
+    if (openDrawer) renderDrawerInto();
+  }
+
+  function renderGate() {
+    app.innerHTML = `
+      <div class="gate">
+        <h2>House Ledger</h2>
+        <p>Enter your name so your ratings and notes stay yours as you and your co-buyer evaluate houses together.</p>
+        <input id="gate-input" placeholder="e.g. Alex" autofocus />
+        <button class="primary" id="gate-go">Start evaluating</button>
+      </div>`;
+    const input = document.getElementById('gate-input');
+    const go = () => {
+      const v = input.value.trim();
+      if (!v) { input.focus(); return; }
+      localStorage.setItem('hh_name', v);
+      identity = v;
+      render();
+      boot();
+    };
+    document.getElementById('gate-go').onclick = go;
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  }
+
+  function renderTopbar() {
+    return `
+      <div class="topbar">
+        <div class="wordmark">
+          <h1>House Ledger</h1>
+          <span class="tag">shared evaluation</span>
+        </div>
+        <div class="tabs">
+          <button data-tab="houses" class="${tab === 'houses' ? 'active' : ''}">Houses</button>
+          <button data-tab="compare" class="${tab === 'compare' ? 'active' : ''}">Compare</button>
+          <button data-tab="ranked" class="${tab === 'ranked' ? 'active' : ''}">Ranked</button>
+        </div>
+        <div class="identity">
+          Evaluating as <span class="chip">${esc(identity)}</span>
+          <button id="change-identity">switch</button>
+        </div>
+      </div>`;
+  }
+
+  function bindGlobal() {
+    app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab !== 'compare') {} render(); });
+    const ci = document.getElementById('change-identity');
+    if (ci) ci.onclick = () => {
+      const v = prompt('Evaluate as:', identity);
+      if (v && v.trim()) { identity = v.trim(); localStorage.setItem('hh_name', identity); render(); }
+    };
+    const addBtn = document.getElementById('add-house-btn');
+    if (addBtn) addBtn.onclick = () => { openDrawer = { type: 'add' }; render(); };
+
+    app.querySelectorAll('.filter-pill').forEach(b => b.onclick = () => { statusFilter = b.dataset.status; render(); });
+
+    app.querySelectorAll('.card').forEach(c => {
+      c.onclick = (e) => {
+        if (e.target.classList.contains('card-check')) return;
+        openDrawer = { type: 'detail', id: c.dataset.id };
+        render();
+      };
+    });
+    app.querySelectorAll('.card-check').forEach(cb => {
+      cb.onclick = (e) => {
+        e.stopPropagation();
+        const id = cb.closest('.card').dataset.id;
+        if (cb.checked) selected.add(id); else selected.delete(id);
+        render();
+      };
+    });
+    const clearSel = document.getElementById('clear-selection');
+    if (clearSel) clearSel.onclick = () => { selected.clear(); render(); };
+    const doCompare = document.getElementById('do-compare');
+    if (doCompare) doCompare.onclick = () => { compareIds = Array.from(selected); tab = 'compare'; render(); };
+
+    app.querySelectorAll('.rm-compare').forEach(b => b.onclick = () => {
+      compareIds = compareIds.filter(id => id !== b.dataset.id);
+      selected.delete(b.dataset.id);
+      render();
+    });
+
+    app.querySelectorAll('.sort-toggle button').forEach(b => b.onclick = () => { rankMode = b.dataset.mode; render(); });
+    app.querySelectorAll('.rank-up').forEach(b => b.onclick = () => moveRank(b.dataset.id, -1));
+    app.querySelectorAll('.rank-down').forEach(b => b.onclick = () => moveRank(b.dataset.id, 1));
+  }
+
+  // ---------------- houses view ----------------
+  function sortedHouseList() {
+    return Array.from(houses.entries())
+      .filter(([id, h]) => statusFilter === 'all' || (h.status || 'interested') === statusFilter)
+      .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+  }
+
+  function avgRating(id) {
+    const evs = evaluations.get(id);
+    if (!evs || evs.size === 0) return null;
+    let sum = 0, n = 0;
+    evs.forEach(e => { if (typeof e.rating === 'number') { sum += e.rating; n++; } });
+    return n ? sum / n : null;
+  }
+
+  function renderHouses() {
+    const list = sortedHouseList();
+    let html = `
+      <div class="toolbar">
+        <span class="count">${list.length} house${list.length === 1 ? '' : 's'}</span>
+        <div class="filter-pills">
+          ${['all', 'interested', 'touring', 'offer', 'passed'].map(s => `
+            <button class="filter-pill ${statusFilter === s ? 'active' : ''}" data-status="${s}">${s === 'all' ? 'All' : STATUS_LABEL[s]}</button>
+          `).join('')}
+        </div>
+        <button class="primary" id="add-house-btn">+ Add house</button>
+      </div>`;
+
+    if (list.length === 0) {
+      html += `<div class="empty-state"><h3>No houses yet</h3><p>Add the first address you toured or saved.</p></div>`;
+      return html;
+    }
+
+    html += '<div class="grid">';
+    for (const [id, h] of list) {
+      const evs = evaluations.get(id);
+      const status = h.status || 'interested';
+      html += `
+        <div class="card" data-id="${id}">
+          <div class="card-top">
+            <input type="checkbox" class="card-check" ${selected.has(id) ? 'checked' : ''} />
+            <div class="card-addr">${esc(h.address)}</div>
+            <span class="status-pill status-${status}">${STATUS_LABEL[status]}</span>
+          </div>
+          <div class="stat-row">
+            <span class="price num">${fmtMoney(h.price)}</span>
+            <span>${fmtNum(h.beds)} bd · ${fmtNum(h.baths)} ba</span>
+            <span class="num">${fmtNum(h.sqft)} sqft</span>
+          </div>
+          <div class="links-row">
+            ${h.zillowUrl ? `<a href="${esc(h.zillowUrl)}" target="_blank" rel="noopener">Zillow</a>` : ''}
+            ${h.redfinUrl ? `<a href="${esc(h.redfinUrl)}" target="_blank" rel="noopener">Redfin</a>` : ''}
+            ${h.mlsUrl ? `<a href="${esc(h.mlsUrl)}" target="_blank" rel="noopener">MLS</a>` : ''}
+          </div>
+          <div class="ratings-row">
+            ${evs && evs.size ? Array.from(evs.values()).map(e => `
+              <span class="rating-chip"><span class="dot" style="background:${colorFor(e.person)}"></span>${esc(e.person)} <span class="val">${e.rating ?? '–'}</span></span>
+            `).join('') : `<span class="rating-chip" style="opacity:.6">No ratings yet</span>`}
+          </div>
+        </div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderCompareBar() {
+    return `
+      <div class="compare-bar">
+        <span>${selected.size} selected</span>
+        <button class="ghost" id="clear-selection" style="border-color:rgba(255,255,255,0.3); color:#fff;">Clear</button>
+        <button class="primary" id="do-compare">Compare</button>
+      </div>`;
+  }
+
+  // ---------------- compare view ----------------
+  function renderCompare() {
+    const ids = compareIds.filter(id => houses.has(id));
+    if (ids.length < 2) {
+      return `<div class="empty-state"><h3>Nothing to compare yet</h3><p>Go to Houses, check 2–4 you want side by side, then hit Compare.</p></div>`;
+    }
+    const rows = [
+      { key: 'price', label: 'Price', fmt: fmtMoney, lower: true },
+      { key: 'sqft', label: 'Sqft', fmt: v => fmtNum(v), higher: true },
+      { key: '$/sqft', label: '$ / sqft', fmt: v => v == null ? '—' : '$' + Math.round(v), lower: true, derived: true },
+      { key: 'beds', label: 'Beds', fmt: v => fmtNum(v), higher: true },
+      { key: 'baths', label: 'Baths', fmt: v => fmtNum(v), higher: true },
+      { key: 'lotSize', label: 'Lot size', fmt: v => fmtNum(v, ' sqft'), higher: true },
+      { key: 'yearBuilt', label: 'Year built', fmt: v => fmtNum(v), higher: true },
+      { key: 'hoa', label: 'HOA / mo', fmt: fmtMoney, lower: true },
+      { key: 'taxes', label: 'Property tax / yr', fmt: fmtMoney, lower: true },
+      { key: 'status', label: 'Status', fmt: v => STATUS_LABEL[v || 'interested'] },
+    ];
+
+    function derivedVal(h, key) {
+      if (key === '$/sqft') return (h.price && h.sqft) ? h.price / h.sqft : null;
+      return h[key];
+    }
+
+    let html = '<div class="compare-wrap"><table class="compare"><thead><tr><th class="rowlabel"></th>';
+    for (const id of ids) {
+      html += `<th><div class="col-addr">${esc(houses.get(id).address)}</div><button class="rm-col rm-compare" data-id="${id}">remove ✕</button></th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    for (const row of rows) {
+      const vals = ids.map(id => derivedVal(houses.get(id), row.key));
+      let best = null;
+      const numericVals = vals.filter(v => typeof v === 'number' && !Number.isNaN(v));
+      if (numericVals.length > 1 && (row.higher || row.lower)) {
+        best = row.higher ? Math.max(...numericVals) : Math.min(...numericVals);
+      }
+      html += `<tr><td class="rowlabel">${row.label}</td>`;
+      vals.forEach(v => {
+        const isBest = best !== null && typeof v === 'number' && v === best;
+        html += `<td class="${isBest ? 'best' : ''}">${row.fmt(v)}</td>`;
+      });
+      html += '</tr>';
+    }
+
+    // ratings per person
+    const people = new Set();
+    ids.forEach(id => { const evs = evaluations.get(id); if (evs) evs.forEach(e => people.add(e.person)); });
+    people.forEach(person => {
+      const vals = ids.map(id => {
+        const evs = evaluations.get(id);
+        const e = evs && Array.from(evs.values()).find(x => x.person === person);
+        return e ? e.rating : null;
+      });
+      const numericVals = vals.filter(v => typeof v === 'number');
+      const best = numericVals.length > 1 ? Math.max(...numericVals) : null;
+      html += `<tr><td class="rowlabel">${esc(person)}'s rating</td>`;
+      vals.forEach(v => html += `<td class="${best !== null && v === best ? 'best' : ''}">${v == null ? '—' : v + ' / 10'}</td>`);
+      html += '</tr>';
+    });
+
+    // pros / cons
+    html += `<tr><td class="rowlabel">Positives</td>`;
+    ids.forEach(id => {
+      const evs = evaluations.get(id);
+      const all = evs ? Array.from(evs.values()).flatMap(e => e.positives || []) : [];
+      html += `<td>${all.length ? '<ul class="pn-list pos">' + all.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>' : '—'}</td>`;
+    });
+    html += '</tr>';
+    html += `<tr><td class="rowlabel">Negatives</td>`;
+    ids.forEach(id => {
+      const evs = evaluations.get(id);
+      const all = evs ? Array.from(evs.values()).flatMap(e => e.negatives || []) : [];
+      html += `<td>${all.length ? '<ul class="pn-list neg">' + all.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>' : '—'}</td>`;
+    });
+    html += '</tr>';
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  // ---------------- ranked view ----------------
+  function moveRank(id, dir) {
+    const list = sortedForRank();
+    const idx = list.findIndex(([hid]) => hid === id);
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= list.length) return;
+    const a = list[idx], b = list[swapIdx];
+    const aOrder = a[1].sortOrder ?? 0, bOrder = b[1].sortOrder ?? 0;
+    db.collection('houses').doc(a[0]).update({ sortOrder: bOrder });
+    db.collection('houses').doc(b[0]).update({ sortOrder: aOrder });
+  }
+
+  function sortedForRank() {
+    const list = Array.from(houses.entries());
+    if (rankMode === 'manual') {
+      return list.sort((a, b) => (a[1].sortOrder ?? 0) - (b[1].sortOrder ?? 0));
+    }
+    return list.sort((a, b) => {
+      const sa = avgRating(a[0]), sb = avgRating(b[0]);
+      if (sa == null && sb == null) return 0;
+      if (sa == null) return 1;
+      if (sb == null) return -1;
+      return sb - sa;
+    });
+  }
+
+  function renderRanked() {
+    const list = sortedForRank();
+    if (list.length === 0) return `<div class="empty-state"><h3>Nothing ranked yet</h3><p>Add houses and rate them to see them here.</p></div>`;
+    let html = `
+      <div class="toolbar">
+        <span class="count">Ranked by ${rankMode === 'manual' ? 'your manual order' : 'combined rating'}</span>
+        <div class="sort-toggle filter-pills">
+          <button class="filter-pill ${rankMode === 'score' ? 'active' : ''}" data-mode="score">By rating</button>
+          <button class="filter-pill ${rankMode === 'manual' ? 'active' : ''}" data-mode="manual">Manual order</button>
+        </div>
+      </div>
+      <div class="rank-list">`;
+    list.forEach(([id, h], i) => {
+      const score = avgRating(id);
+      const evs = evaluations.get(id);
+      const breakdown = evs && evs.size ? Array.from(evs.values()).map(e => `${e.person}: ${e.rating ?? '–'}`).join(' · ') : 'No ratings yet';
+      html += `
+        <div class="rank-row" data-id="${id}">
+          <div class="rank-num">${i + 1}</div>
+          <div class="rank-main">
+            <div class="rank-addr">${esc(h.address)}</div>
+            <div class="rank-sub">${fmtMoney(h.price)} · ${STATUS_LABEL[h.status || 'interested']} · ${esc(breakdown)}</div>
+          </div>
+          ${rankMode === 'manual' ? `
+            <div class="rank-move">
+              <button class="icon-btn rank-up" data-id="${id}" ${i === 0 ? 'disabled' : ''}>▲</button>
+              <button class="icon-btn rank-down" data-id="${id}" ${i === list.length - 1 ? 'disabled' : ''}>▼</button>
+            </div>` : `
+            <div class="rank-score"><span class="lbl">Score</span>${score == null ? '—' : score.toFixed(1)}</div>
+          `}
+        </div>`;
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ---------------- drawer ----------------
+  function closeDrawer() { openDrawer = null; render(); }
+
+  function renderDrawerInto() {
+    app.insertAdjacentHTML('beforeend', openDrawer.type === 'add' ? addDrawerHtml() : detailDrawerHtml(openDrawer.id));
+    bindDrawer();
+  }
+
+  function addDrawerHtml() {
+    return `
+      <div class="overlay" id="overlay"></div>
+      <div class="drawer">
+        <div class="drawer-head"><h2>Add a house</h2><button class="icon-btn" id="close-drawer">✕</button></div>
+        <div class="drawer-body">
+          <div class="field full"><label>Address *</label><input id="f-address" placeholder="123 Maple St, Springfield" /></div>
+          <div class="field-grid">
+            <div class="field"><label>Price</label><input id="f-price" type="number" placeholder="650000" /></div>
+            <div class="field"><label>Status</label>
+              <select id="f-status">${Object.entries(STATUS_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+            </div>
+            <div class="field"><label>Beds</label><input id="f-beds" type="number" /></div>
+            <div class="field"><label>Baths</label><input id="f-baths" type="number" step="0.5" /></div>
+            <div class="field"><label>Sqft</label><input id="f-sqft" type="number" /></div>
+            <div class="field"><label>Lot size (sqft)</label><input id="f-lotSize" type="number" /></div>
+            <div class="field"><label>Year built</label><input id="f-yearBuilt" type="number" /></div>
+            <div class="field"><label>HOA / mo</label><input id="f-hoa" type="number" /></div>
+            <div class="field full"><label>Property tax / yr</label><input id="f-taxes" type="number" /></div>
+            <div class="field full"><label>Zillow link</label><input id="f-zillowUrl" placeholder="https://zillow.com/..." /></div>
+            <div class="field full"><label>Redfin link</label><input id="f-redfinUrl" placeholder="https://redfin.com/..." /></div>
+            <div class="field full"><label>MLS link</label><input id="f-mlsUrl" placeholder="https://..." /></div>
+            <div class="field full"><label>Shared notes</label><textarea id="f-notes" placeholder="Anything worth flagging for both of you"></textarea></div>
+          </div>
+          <div class="row-actions">
+            <button class="ghost" id="cancel-add">Cancel</button>
+            <button class="primary" id="save-add">Add house</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function detailDrawerHtml(id) {
+    const h = houses.get(id);
+    if (!h) return '';
+    const evs = evaluations.get(id) || new Map();
+    const mySlug = slug(identity);
+    const mine = evs.get(mySlug) || { person: identity, positives: [], negatives: [], rating: 5, notes: '' };
+    const others = Array.from(evs.values()).filter(e => slug(e.person) !== mySlug);
+
+    return `
+      <div class="overlay" id="overlay"></div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <h2>${esc(h.address)}</h2>
+          <button class="icon-btn" id="edit-house">✎ Edit</button>
+          <button class="icon-btn" id="delete-house" title="Delete house">🗑</button>
+          <button class="icon-btn" id="close-drawer">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="stat-row" style="font-size:14px;">
+            <span class="price num">${fmtMoney(h.price)}</span>
+            <span>${fmtNum(h.beds)} bd · ${fmtNum(h.baths)} ba</span>
+            <span class="num">${fmtNum(h.sqft)} sqft</span>
+            <span class="status-pill status-${h.status || 'interested'}">${STATUS_LABEL[h.status || 'interested']}</span>
+          </div>
+          <div class="links-row">
+            ${h.zillowUrl ? `<a href="${esc(h.zillowUrl)}" target="_blank" rel="noopener">Zillow ↗</a>` : ''}
+            ${h.redfinUrl ? `<a href="${esc(h.redfinUrl)}" target="_blank" rel="noopener">Redfin ↗</a>` : ''}
+            ${h.mlsUrl ? `<a href="${esc(h.mlsUrl)}" target="_blank" rel="noopener">MLS ↗</a>` : ''}
+          </div>
+          ${h.notes ? `<div class="field"><label>Shared notes</label><div style="font-size:13.5px; color:var(--ink-soft); white-space:pre-wrap;">${esc(h.notes)}</div></div>` : ''}
+
+          <section class="block">
+            <h3>Evaluations</h3>
+            <div class="eval-columns">
+              <div class="eval-card mine">
+                <div class="who"><span class="dot" style="background:${colorFor(identity)}"></span>${esc(identity)} (you)</div>
+                <div class="rating-scale">
+                  <input type="range" min="1" max="10" id="e-rating" value="${mine.rating ?? 5}" />
+                  <span class="rval" id="e-rating-val">${mine.rating ?? 5}</span>
+                </div>
+                <div class="pn-cols">
+                  <div class="field"><label>Positives (one per line)</label><textarea id="e-positives">${esc((mine.positives || []).join('\n'))}</textarea></div>
+                  <div class="field"><label>Negatives (one per line)</label><textarea id="e-negatives">${esc((mine.negatives || []).join('\n'))}</textarea></div>
+                </div>
+                <div class="field"><label>Notes</label><textarea id="e-notes">${esc(mine.notes || '')}</textarea></div>
+                <div class="row-actions"><button class="primary" id="save-eval">Save my evaluation</button></div>
+              </div>
+              ${others.length ? others.map(o => `
+                <div class="eval-card">
+                  <div class="who"><span class="dot" style="background:${colorFor(o.person)}"></span>${esc(o.person)}</div>
+                  <div class="rating-scale"><span class="rval">${o.rating ?? '–'} / 10</span></div>
+                  ${(o.positives || []).length ? `<ul class="pn-list pos">${o.positives.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+                  ${(o.negatives || []).length ? `<ul class="pn-list neg">${o.negatives.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+                  ${o.notes ? `<div style="font-size:12.5px; color:var(--ink-soft); white-space:pre-wrap;">${esc(o.notes)}</div>` : ''}
+                </div>
+              `).join('') : `<div class="eval-card"><div class="empty-eval">Waiting on your co-buyer's evaluation.</div></div>`}
+            </div>
+          </section>
+        </div>
+      </div>`;
+  }
+
+  function bindDrawer() {
+    const ov = document.getElementById('overlay');
+    if (ov) ov.onclick = closeDrawer;
+    const close = document.getElementById('close-drawer');
+    if (close) close.onclick = closeDrawer;
+    const cancel = document.getElementById('cancel-add');
+    if (cancel) cancel.onclick = closeDrawer;
+
+    const saveAdd = document.getElementById('save-add');
+    if (saveAdd) saveAdd.onclick = async () => {
+      const address = document.getElementById('f-address').value.trim();
+      if (!address) { document.getElementById('f-address').focus(); return; }
+      const num = fid => { const v = document.getElementById(fid).value; return v === '' ? null : Number(v); };
+      const str = fid => document.getElementById(fid).value.trim() || null;
+      saveAdd.disabled = true;
+      try {
+        await db.collection('houses').add({
+          address,
+          price: num('f-price'), beds: num('f-beds'), baths: num('f-baths'),
+          sqft: num('f-sqft'), lotSize: num('f-lotSize'), yearBuilt: num('f-yearBuilt'),
+          hoa: num('f-hoa'), taxes: num('f-taxes'), status: document.getElementById('f-status').value,
+          zillowUrl: str('f-zillowUrl'), redfinUrl: str('f-redfinUrl'), mlsUrl: str('f-mlsUrl'),
+          notes: str('f-notes'), createdAt: Date.now(), sortOrder: Date.now(),
+        });
+        closeDrawer();
+      } catch (e) { alert('Could not save: ' + e.message); saveAdd.disabled = false; }
+    };
+
+    const editBtn = document.getElementById('edit-house');
+    if (editBtn) editBtn.onclick = () => editHouse(openDrawer.id);
+    const delBtn = document.getElementById('delete-house');
+    if (delBtn) delBtn.onclick = async () => {
+      if (!confirm('Delete this house and its evaluations?')) return;
+      await db.collection('houses').doc(openDrawer.id).delete();
+      closeDrawer();
+    };
+
+    const ratingInput = document.getElementById('e-rating');
+    if (ratingInput) ratingInput.oninput = () => { document.getElementById('e-rating-val').textContent = ratingInput.value; };
+
+    const saveEval = document.getElementById('save-eval');
+    if (saveEval) saveEval.onclick = async () => {
+      saveEval.disabled = true;
+      const data = {
+        person: identity,
+        rating: Number(document.getElementById('e-rating').value),
+        positives: linesToArray(document.getElementById('e-positives').value),
+        negatives: linesToArray(document.getElementById('e-negatives').value),
+        notes: document.getElementById('e-notes').value.trim(),
+        updatedAt: Date.now(),
+      };
+      try {
+        await db.collection('houses').doc(openDrawer.id).collection('evaluations').doc(slug(identity)).set(data);
+        saveEval.textContent = 'Saved ✓';
+        setTimeout(() => { saveEval.textContent = 'Save my evaluation'; saveEval.disabled = false; }, 1200);
+      } catch (e) { alert('Could not save: ' + e.message); saveEval.disabled = false; }
+    };
+  }
+
+  function editHouse(id) {
+    const h = houses.get(id);
+    const fields = ['price','beds','baths','sqft','lotSize','yearBuilt','hoa','taxes','zillowUrl','redfinUrl','mlsUrl','notes','status'];
+    const labels = { price:'Price', beds:'Beds', baths:'Baths', sqft:'Sqft', lotSize:'Lot size', yearBuilt:'Year built', hoa:'HOA/mo', taxes:'Taxes/yr', zillowUrl:'Zillow URL', redfinUrl:'Redfin URL', mlsUrl:'MLS URL', notes:'Notes', status:'Status (interested/touring/offer/passed)' };
+    const updates = {};
+    for (const f of fields) {
+      const cur = h[f] == null ? '' : h[f];
+      const v = prompt(labels[f] + ':', cur);
+      if (v === null) continue;
+      if (['price','beds','baths','sqft','lotSize','yearBuilt','hoa','taxes'].includes(f)) {
+        updates[f] = v.trim() === '' ? null : Number(v);
+      } else {
+        updates[f] = v.trim() || null;
+      }
+    }
+    if (Object.keys(updates).length) db.collection('houses').doc(id).update(updates);
+  }
+
+  // ---------------- boot ----------------
+  async function boot() {
+    db = await window.claude.use('db');
+    if (!db) {
+      app.innerHTML = '<div class="empty-state"><h3>Storage unavailable</h3><p>This view could not connect to shared storage. Try reopening the page.</p></div>';
+      return;
+    }
+    db.collection('houses').onSnapshot(snap => {
+      const seen = new Set();
+      snap.docs.forEach(d => {
+        seen.add(d.id);
+        houses.set(d.id, d.data());
+        if (!evalUnsubs.has(d.id)) {
+          const unsub = db.collection('houses').doc(d.id).collection('evaluations').onSnapshot(esnap => {
+            const m = new Map();
+            esnap.docs.forEach(ed => m.set(ed.id, ed.data()));
+            evaluations.set(d.id, m);
+            render();
+          }, () => {});
+          evalUnsubs.set(d.id, unsub);
+        }
+      });
+      // cleanup removed houses
+      for (const id of Array.from(houses.keys())) {
+        if (!seen.has(id)) {
+          houses.delete(id);
+          evaluations.delete(id);
+          const u = evalUnsubs.get(id); if (u) u();
+          evalUnsubs.delete(id);
+          selected.delete(id);
+          compareIds = compareIds.filter(x => x !== id);
+        }
+      }
+      ready = true;
+      render();
+    }, () => { ready = true; render(); });
+  }
+
+  render();
+  if (identity) boot();
+})();
+</script>
