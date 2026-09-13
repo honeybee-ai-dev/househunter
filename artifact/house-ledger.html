@@ -252,6 +252,34 @@
   .rank-move { display: flex; flex-direction: column; }
 
   .sort-toggle { display: flex; gap: 6px; }
+
+  /* ---- property details / research ---- */
+  .detail-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 20px; }
+  .detail-stat { display: flex; flex-direction: column; gap: 2px; }
+  .detail-stat .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; }
+  .detail-stat .v { font-size: 14px; font-weight: 600; }
+
+  .school-list { display: flex; flex-direction: column; gap: 8px; }
+  .school-row { display: flex; align-items: center; gap: 10px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+  .school-row .info { flex: 1; min-width: 0; }
+  .school-row .name { font-weight: 600; font-size: 13.5px; }
+  .school-row .meta { font-size: 11.5px; color: var(--ink-soft); }
+  .school-rating { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 12.5px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .school-rating.good { background: var(--good-soft); color: var(--good); }
+  .school-rating.warning { background: var(--warning-soft); color: var(--warning); }
+  .school-rating.critical { background: var(--critical-soft); color: var(--critical); }
+
+  table.history-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.history-table th, table.history-table td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line-soft); }
+  table.history-table th { font-size: 10.5px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.04em; }
+
+  .agent-card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .agent-card .name { font-weight: 600; font-size: 14.5px; }
+  .agent-card .meta { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; }
+
+  .section-head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-head-row h3 { margin: 0; }
+  .no-data { color: var(--ink-faint); font-size: 12.5px; }
 </style>
 
 <div id="app"></div>
@@ -286,6 +314,24 @@
   }
   function linesToArray(text) {
     return (text || '').split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  function parsePipeRows(text, keys) {
+    return (text || '').split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      const obj = {};
+      keys.forEach((k, i) => obj[k] = parts[i] || '');
+      return obj;
+    });
+  }
+  function toPipeLines(arr, keys) {
+    return (arr || []).map(o => keys.map(k => o[k] || '').join(' | ')).join('\n');
+  }
+  function ratingClass(ratingStr) {
+    const n = parseFloat(ratingStr);
+    if (Number.isNaN(n)) return '';
+    if (n >= 8) return 'good';
+    if (n >= 5) return 'warning';
+    return 'critical';
   }
 
   // ---------------- state ----------------
@@ -650,7 +696,8 @@
             <div class="field"><label>Lot size (sqft)</label><input id="f-lotSize" type="number" /></div>
             <div class="field"><label>Year built</label><input id="f-yearBuilt" type="number" /></div>
             <div class="field"><label>HOA / mo</label><input id="f-hoa" type="number" /></div>
-            <div class="field full"><label>Property tax / yr</label><input id="f-taxes" type="number" /></div>
+            <div class="field"><label>Property tax / yr</label><input id="f-taxes" type="number" /></div>
+            <div class="field"><label>Listed date</label><input id="f-listedDate" placeholder="e.g. Sep 8, 2026" /></div>
             <div class="field full"><label>Zillow link</label><input id="f-zillowUrl" placeholder="https://zillow.com/..." /></div>
             <div class="field full"><label>Redfin link</label><input id="f-redfinUrl" placeholder="https://redfin.com/..." /></div>
             <div class="field full"><label>MLS link</label><input id="f-mlsUrl" placeholder="https://..." /></div>
@@ -662,6 +709,67 @@
           </div>
         </div>
       </div>`;
+  }
+
+  function propertyDetailsViewHtml(h) {
+    const schools = h.schools || [];
+    const history = h.saleHistory || [];
+    const agent = h.agent || {};
+    return `
+      <div class="detail-stats-grid" style="margin-bottom:16px;">
+        <div class="detail-stat"><span class="k">Lot size</span><span class="v">${fmtNum(h.lotSize, ' sqft')}</span></div>
+        <div class="detail-stat"><span class="k">Year built</span><span class="v">${fmtNum(h.yearBuilt)}</span></div>
+        <div class="detail-stat"><span class="k">HOA / mo</span><span class="v">${fmtMoney(h.hoa)}</span></div>
+        <div class="detail-stat"><span class="k">Property tax / yr</span><span class="v">${fmtMoney(h.taxes)}</span></div>
+        <div class="detail-stat"><span class="k">Listed</span><span class="v">${esc(h.listedDate) || '—'}</span></div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="section-head-row" style="margin-bottom:8px;"><h3 style="font-size:11.5px;">Schools</h3></div>
+        ${schools.length ? `<div class="school-list">${schools.map(s => `
+          <div class="school-row">
+            <div class="info"><div class="name">${esc(s.name)}</div><div class="meta">${esc(s.level)}${s.distance ? ' · ' + esc(s.distance) : ''}</div></div>
+            ${s.rating ? `<span class="school-rating ${ratingClass(s.rating)}">${esc(s.rating)}</span>` : ''}
+          </div>`).join('')}</div>` : `<div class="no-data">No school data yet.</div>`}
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="section-head-row" style="margin-bottom:8px;"><h3 style="font-size:11.5px;">Sale history</h3></div>
+        ${history.length ? `<table class="history-table"><thead><tr><th>Date</th><th>Event</th><th>Price</th></tr></thead><tbody>${history.map(r => `
+          <tr><td>${esc(r.date)}</td><td>${esc(r.event)}</td><td class="num">${r.price ? fmtMoney(r.price) : esc(r.price)}</td></tr>`).join('')}</tbody></table>` : `<div class="no-data">No sale history yet.</div>`}
+      </div>
+
+      <div>
+        <div class="section-head-row" style="margin-bottom:8px;"><h3 style="font-size:11.5px;">Listing agent</h3></div>
+        ${agent.name ? `<div class="agent-card">
+          <div class="name">${esc(agent.name)}</div>
+          <div class="meta">${[agent.brokerage, agent.phone, agent.license ? 'DRE/License ' + agent.license : null].filter(Boolean).map(esc).join(' · ')}</div>
+        </div>` : `<div class="no-data">No agent info yet.</div>`}
+      </div>`;
+  }
+
+  function propertyDetailsEditHtml(h) {
+    return `
+      <div class="field-grid" style="margin-bottom:16px;">
+        <div class="field"><label>Lot size (sqft)</label><input id="d-lotSize" type="number" value="${h.lotSize ?? ''}" /></div>
+        <div class="field"><label>Year built</label><input id="d-yearBuilt" type="number" value="${h.yearBuilt ?? ''}" /></div>
+        <div class="field"><label>HOA / mo</label><input id="d-hoa" type="number" value="${h.hoa ?? ''}" /></div>
+        <div class="field"><label>Property tax / yr</label><input id="d-taxes" type="number" value="${h.taxes ?? ''}" /></div>
+        <div class="field full"><label>Listed date</label><input id="d-listedDate" value="${esc(h.listedDate || '')}" placeholder="e.g. Sep 8, 2026" /></div>
+      </div>
+      <div class="field full" style="margin-bottom:16px;">
+        <label>Schools — one per line: Name | Level | Rating | Distance</label>
+        <textarea id="d-schools" placeholder="Simonds Elementary School | K-5 | 9/10 | 0.6mi">${esc(toPipeLines(h.schools, ['name', 'level', 'rating', 'distance']))}</textarea>
+      </div>
+      <div class="field full" style="margin-bottom:16px;">
+        <label>Sale history — one per line: Date | Event | Price</label>
+        <textarea id="d-history" placeholder="Sep 8, 2026 | Listed | 1549888">${esc(toPipeLines(h.saleHistory, ['date', 'event', 'price']))}</textarea>
+      </div>
+      <div class="field full" style="margin-bottom:14px;">
+        <label>Listing agent — Name | Brokerage | Phone | License</label>
+        <input id="d-agent" value="${esc([h.agent?.name, h.agent?.brokerage, h.agent?.phone, h.agent?.license].filter(v => v != null).join(' | '))}" placeholder="Joel Stieber | KW Bay Area Estates | 408-799-7029 | DRE #02002877" />
+      </div>
+      <div class="row-actions"><button class="primary" id="save-details">Save details</button></div>`;
   }
 
   function detailDrawerHtml(id) {
@@ -694,6 +802,14 @@
             ${h.mlsUrl ? `<a href="${esc(h.mlsUrl)}" target="_blank" rel="noopener">MLS ↗</a>` : ''}
           </div>
           ${h.notes ? `<div class="field"><label>Shared notes</label><div style="font-size:13.5px; color:var(--ink-soft); white-space:pre-wrap;">${esc(h.notes)}</div></div>` : ''}
+
+          <section class="block">
+            <div class="section-head-row">
+              <h3>Property details &amp; research</h3>
+              <button class="icon-btn" id="toggle-edit-details">${openDrawer.editingDetails ? 'Cancel' : '✎ Edit'}</button>
+            </div>
+            ${openDrawer.editingDetails ? propertyDetailsEditHtml(h) : propertyDetailsViewHtml(h)}
+          </section>
 
           <section class="block">
             <h3>Evaluations</h3>
@@ -747,6 +863,7 @@
           price: num('f-price'), beds: num('f-beds'), baths: num('f-baths'),
           sqft: num('f-sqft'), lotSize: num('f-lotSize'), yearBuilt: num('f-yearBuilt'),
           hoa: num('f-hoa'), taxes: num('f-taxes'), status: document.getElementById('f-status').value,
+          listedDate: str('f-listedDate'),
           zillowUrl: str('f-zillowUrl'), redfinUrl: str('f-redfinUrl'), mlsUrl: str('f-mlsUrl'),
           notes: str('f-notes'), createdAt: Date.now(), sortOrder: Date.now(),
         });
@@ -756,6 +873,28 @@
 
     const editBtn = document.getElementById('edit-house');
     if (editBtn) editBtn.onclick = () => editHouse(openDrawer.id);
+
+    const toggleDetails = document.getElementById('toggle-edit-details');
+    if (toggleDetails) toggleDetails.onclick = () => { openDrawer.editingDetails = !openDrawer.editingDetails; render(); };
+
+    const saveDetails = document.getElementById('save-details');
+    if (saveDetails) saveDetails.onclick = async () => {
+      saveDetails.disabled = true;
+      const num = fid => { const v = document.getElementById(fid).value; return v === '' ? null : Number(v); };
+      const agentParts = document.getElementById('d-agent').value.split('|').map(p => p.trim());
+      const updates = {
+        lotSize: num('d-lotSize'), yearBuilt: num('d-yearBuilt'), hoa: num('d-hoa'), taxes: num('d-taxes'),
+        listedDate: document.getElementById('d-listedDate').value.trim() || null,
+        schools: parsePipeRows(document.getElementById('d-schools').value, ['name', 'level', 'rating', 'distance']),
+        saleHistory: parsePipeRows(document.getElementById('d-history').value, ['date', 'event', 'price']).map(r => ({ ...r, price: r.price ? Number(r.price.replace(/[^0-9.]/g, '')) || r.price : r.price })),
+        agent: agentParts[0] ? { name: agentParts[0] || null, brokerage: agentParts[1] || null, phone: agentParts[2] || null, license: agentParts[3] || null } : null,
+      };
+      try {
+        await db.collection('houses').doc(openDrawer.id).update(updates);
+        openDrawer.editingDetails = false;
+        render();
+      } catch (e) { alert('Could not save: ' + e.message); saveDetails.disabled = false; }
+    };
     const delBtn = document.getElementById('delete-house');
     if (delBtn) delBtn.onclick = async () => {
       if (!confirm('Delete this house and its evaluations?')) return;
@@ -787,14 +926,14 @@
 
   function editHouse(id) {
     const h = houses.get(id);
-    const fields = ['price','beds','baths','sqft','lotSize','yearBuilt','hoa','taxes','zillowUrl','redfinUrl','mlsUrl','notes','status'];
-    const labels = { price:'Price', beds:'Beds', baths:'Baths', sqft:'Sqft', lotSize:'Lot size', yearBuilt:'Year built', hoa:'HOA/mo', taxes:'Taxes/yr', zillowUrl:'Zillow URL', redfinUrl:'Redfin URL', mlsUrl:'MLS URL', notes:'Notes', status:'Status (interested/touring/offer/passed)' };
+    const fields = ['price','beds','baths','sqft','zillowUrl','redfinUrl','mlsUrl','notes','status'];
+    const labels = { price:'Price', beds:'Beds', baths:'Baths', sqft:'Sqft', zillowUrl:'Zillow URL', redfinUrl:'Redfin URL', mlsUrl:'MLS URL', notes:'Notes', status:'Status (interested/touring/offer/passed)' };
     const updates = {};
     for (const f of fields) {
       const cur = h[f] == null ? '' : h[f];
       const v = prompt(labels[f] + ':', cur);
       if (v === null) continue;
-      if (['price','beds','baths','sqft','lotSize','yearBuilt','hoa','taxes'].includes(f)) {
+      if (['price','beds','baths','sqft'].includes(f)) {
         updates[f] = v.trim() === '' ? null : Number(v);
       } else {
         updates[f] = v.trim() || null;
