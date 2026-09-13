@@ -166,6 +166,12 @@
   select.status-select.status-touring { background: var(--accent-soft); color: var(--accent-ink); }
   select.status-select.status-offer { background: var(--warning-soft); color: var(--warning); }
   select.status-select.status-passed { background: var(--critical-soft); color: var(--critical); }
+  .flip-badge {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+    background: var(--warning-soft); color: var(--warning); border-radius: 999px; padding: 3px 9px;
+    cursor: help; white-space: nowrap;
+  }
   .stat-row { display: flex; gap: 14px; font-size: 13px; color: var(--ink-soft); flex-wrap: wrap; }
   .stat-row .num { color: var(--ink); font-weight: 500; }
   .stat-row .price { font-size: 15px; font-weight: 600; color: var(--ink); }
@@ -477,6 +483,25 @@
     return n ? sum / n : null;
   }
 
+  // Flags a likely flip: bought, then relisted within ~18mo at a meaningfully higher price.
+  function detectFlip(h) {
+    const hist = (h.saleHistory || [])
+      .map(r => ({ ...r, ts: Date.parse(r.date) }))
+      .filter(r => !Number.isNaN(r.ts))
+      .sort((a, b) => b.ts - a.ts);
+    const soldIdx = hist.findIndex(r => r.event === 'Sold' && r.price);
+    if (soldIdx === -1) return null;
+    const sold = hist[soldIdx];
+    const relist = hist.slice(0, soldIdx).reverse().find(r => r.event === 'Listed' && r.price);
+    if (!relist) return null;
+    const months = (relist.ts - sold.ts) / (1000 * 60 * 60 * 24 * 30);
+    const pctUp = (relist.price - sold.price) / sold.price;
+    if (months >= 0 && months <= 18 && pctUp >= 0.08) {
+      return { boughtPrice: sold.price, boughtDate: sold.date, listedPrice: relist.price, listedDate: relist.date, months: Math.round(months), pctUp };
+    }
+    return null;
+  }
+
   function renderHouses() {
     const list = sortedHouseList();
     let html = `
@@ -499,6 +524,7 @@
     for (const [id, h] of list) {
       const evs = evaluations.get(id);
       const status = h.status || 'interested';
+      const flip = detectFlip(h);
       html += `
         <div class="card" data-id="${id}">
           <div class="card-top">
@@ -506,6 +532,7 @@
             <div class="card-addr">${esc(h.address)}</div>
             <span class="status-pill status-${status}">${STATUS_LABEL[status]}</span>
           </div>
+          ${flip ? `<span class="flip-badge" title="Bought ${fmtMoney(flip.boughtPrice)} (${esc(flip.boughtDate)}) → listed ${fmtMoney(flip.listedPrice)} (${esc(flip.listedDate)}) — ${flip.months} mo later, +${Math.round(flip.pctUp * 100)}%">⟲ Possible flip</span>` : ''}
           <div class="stat-row">
             <span class="price num">${fmtMoney(h.price)}</span>
             <span>${fmtNum(h.beds)} bd · ${fmtNum(h.baths)} ba</span>
