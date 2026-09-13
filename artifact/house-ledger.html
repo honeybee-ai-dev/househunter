@@ -157,6 +157,15 @@
   .status-touring { background: var(--accent-soft); color: var(--accent-ink); }
   .status-offer { background: var(--warning-soft); color: var(--warning); }
   .status-passed { background: var(--critical-soft); color: var(--critical); }
+  select.status-select {
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent;
+    -webkit-appearance: none; appearance: none; cursor: pointer; font-family: inherit;
+  }
+  select.status-select.status-interested { background: var(--navy-soft); color: var(--navy); }
+  select.status-select.status-touring { background: var(--accent-soft); color: var(--accent-ink); }
+  select.status-select.status-offer { background: var(--warning-soft); color: var(--warning); }
+  select.status-select.status-passed { background: var(--critical-soft); color: var(--critical); }
   .stat-row { display: flex; gap: 14px; font-size: 13px; color: var(--ink-soft); flex-wrap: wrap; }
   .stat-row .num { color: var(--ink); font-weight: 500; }
   .stat-row .price { font-size: 15px; font-weight: 600; color: var(--ink); }
@@ -794,7 +803,9 @@
             <span class="price num">${fmtMoney(h.price)}</span>
             <span>${fmtNum(h.beds)} bd · ${fmtNum(h.baths)} ba</span>
             <span class="num">${fmtNum(h.sqft)} sqft</span>
-            <span class="status-pill status-${h.status || 'interested'}">${STATUS_LABEL[h.status || 'interested']}</span>
+            <select id="d-status-select" class="status-select status-${h.status || 'interested'}">
+              ${Object.entries(STATUS_LABEL).map(([k, v]) => `<option value="${k}" ${(h.status || 'interested') === k ? 'selected' : ''}>${v}</option>`).join('')}
+            </select>
           </div>
           <div class="links-row">
             ${h.zillowUrl ? `<a href="${esc(h.zillowUrl)}" target="_blank" rel="noopener">Zillow ↗</a>` : ''}
@@ -871,6 +882,14 @@
       } catch (e) { alert('Could not save: ' + e.message); saveAdd.disabled = false; }
     };
 
+    const statusSelect = document.getElementById('d-status-select');
+    if (statusSelect) statusSelect.onchange = async () => {
+      const val = statusSelect.value;
+      statusSelect.className = 'status-select status-' + val;
+      try { await db.collection('houses').doc(openDrawer.id).update({ status: val }); }
+      catch (e) { alert('Could not update status: ' + e.message); }
+    };
+
     const editBtn = document.getElementById('edit-house');
     if (editBtn) editBtn.onclick = () => editHouse(openDrawer.id);
 
@@ -926,8 +945,8 @@
 
   function editHouse(id) {
     const h = houses.get(id);
-    const fields = ['price','beds','baths','sqft','zillowUrl','redfinUrl','mlsUrl','notes','status'];
-    const labels = { price:'Price', beds:'Beds', baths:'Baths', sqft:'Sqft', zillowUrl:'Zillow URL', redfinUrl:'Redfin URL', mlsUrl:'MLS URL', notes:'Notes', status:'Status (interested/touring/offer/passed)' };
+    const fields = ['price','beds','baths','sqft','zillowUrl','redfinUrl','mlsUrl','notes'];
+    const labels = { price:'Price', beds:'Beds', baths:'Baths', sqft:'Sqft', zillowUrl:'Zillow URL', redfinUrl:'Redfin URL', mlsUrl:'MLS URL', notes:'Notes' };
     const updates = {};
     for (const f of fields) {
       const cur = h[f] == null ? '' : h[f];
