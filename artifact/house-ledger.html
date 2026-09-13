@@ -752,6 +752,7 @@
     const history = h.saleHistory || [];
     const taxHistory = h.taxHistory || [];
     const agent = h.agent || {};
+    const street = h.streetContext || null;
     return `
       <div class="detail-stats-grid" style="margin-bottom:16px;">
         <div class="detail-stat"><span class="k">Lot size</span><span class="v">${fmtNum(h.lotSize, ' sqft')}</span></div>
@@ -759,6 +760,18 @@
         <div class="detail-stat"><span class="k">HOA / mo</span><span class="v">${fmtMoney(h.hoa)}</span></div>
         <div class="detail-stat"><span class="k">Property tax / yr</span><span class="v">${fmtMoney(h.taxes)}</span></div>
         <div class="detail-stat"><span class="k">Listed</span><span class="v">${esc(h.listedDate) || '—'}</span></div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="section-head-row" style="margin-bottom:8px;"><h3 style="font-size:11.5px;">Street &amp; lot</h3></div>
+        ${street ? `
+          <div class="detail-stats-grid" style="margin-bottom:8px;">
+            <div class="detail-stat"><span class="k">Street type</span><span class="v">${esc(street.type)}</span></div>
+            <div class="detail-stat"><span class="k">Corner lot</span><span class="v">${street.cornerLot ? 'Likely yes' : 'Likely no'}</span></div>
+          </div>
+          ${street.nearBusyRoad ? `<div class="no-data" style="color:var(--warning);">⚠ Close to ${esc(street.nearestBusyRoad)}, a busier road — worth a drive-by at rush hour.</div>` : ''}
+          <div class="no-data" style="margin-top:6px;">Estimated from map data (OpenStreetMap road classification), not an on-site inspection or traffic count — lane markings (e.g. double yellow lines) aren't determinable this way; verify in person or via Street View.</div>
+        ` : `<div class="no-data">No street data yet.</div>`}
       </div>
 
       <div style="margin-bottom:16px;">
